@@ -5,6 +5,7 @@ import type { SeenValue } from "@/lib/editor-action";
 import { t } from "@/lib/i18n";
 import { useLocale } from "@/hooks/use-locale";
 import { Button } from "./button";
+import { Collapse } from "./collapse";
 
 interface QuestionNoteProps {
   note: PreviewNote;
@@ -54,12 +55,7 @@ export function QuestionNote({ note, disabled, saving, maxLength, onRead, onSave
       </div>
     );
   }
-  if (editorOpen) {
-    return <Suspense fallback={<span role="status">{t("conversations.loading")}</span>}><QuestionNoteEditor draft={draft} onChange={setDraft} disabled={locked} saving={saving}
-      maxLength={maxLength} onSave={() => void save()} onCancel={() => setEditorOpen(false)} /></Suspense>;
-  }
-  if (note.state === "attached") {
-    return (
+  const summary = note.state === "attached" ? (
       <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
         <StickyNote className="mt-0.5 size-3.5 shrink-0 text-primary" aria-label={t("dialog.preview.noteAria")} />
         <span className="font-content min-w-0 flex-1 text-xs text-foreground/90">{note.text}</span>
@@ -70,12 +66,17 @@ export function QuestionNote({ note, disabled, saving, maxLength, onRead, onSave
           {saving ? busyIcon : <Trash2 className="size-3.5" />}
         </Button>
       </div>
-    );
-  }
-  return (
+  ) : (
     <Button type="button" variant="outline" disabled={locked} onClick={() => void open()} className="min-h-11 w-full justify-start border-dashed text-xs text-muted-foreground">
       {reading ? busyIcon : <StickyNote className="size-3.5 shrink-0" />}
       {t("dialog.preview.addNote")}
     </Button>
   );
+  return <>
+    <Collapse open={!editorOpen}>{summary}</Collapse>
+    <Collapse open={editorOpen}>
+      {editorOpen ? <Suspense fallback={<span role="status" className="sr-only">{t("conversations.loading")}</span>}><QuestionNoteEditor draft={draft} onChange={setDraft} disabled={locked} saving={saving}
+        maxLength={maxLength} onSave={() => void save()} onCancel={() => setEditorOpen(false)} /></Suspense> : null}
+    </Collapse>
+  </>;
 }

@@ -354,7 +354,7 @@ export function CardDock(props: CardDockProps) {
         cancelDisabled={editorDisabled} busy={edit.busy === "save"} busyAriaLabel={t("dialog.sendingAria")}
         inputDisabled={editorDisabled} readOnly={edit.remove} />;
     }
-    return <Suspense fallback={<span role="status">{t("conversations.loading")}</span>}><QuestionNoteEditor draft={edit.draft} onChange={onChange}
+    return <Suspense fallback={<span role="status" className="sr-only">{t("conversations.loading")}</span>}><QuestionNoteEditor draft={edit.draft} onChange={onChange}
       disabled={editorDisabled} inputDisabled={editorDisabled} saving={edit.busy === "save"} returning={edit.busy === "return"}
       maxLength={NOTE_MAX_LENGTH} allowEmpty readOnly={edit.remove} onSave={() => void finish("save")} onCancel={() => void finish("return")}
       saveLabel={edit.remove ? t("dialog.preview.removeNoteAria") : undefined} cancelLabel={t("dialog.backToOptions")}

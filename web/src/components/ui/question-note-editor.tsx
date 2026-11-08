@@ -3,6 +3,7 @@ import { Loader2, StickyNote } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { useLocale } from "@/hooks/use-locale";
 import { Button } from "./button";
+import { Collapse } from "./collapse";
 
 interface QuestionNoteEditorProps {
   draft: string;
@@ -29,6 +30,7 @@ export default function QuestionNoteEditor({ draft, onChange, disabled, saving, 
   useEffect(() => { editorRef.current?.focus(); }, []);
   const busyIcon = <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" aria-label={t("dialog.sendingAria")} />;
   return (
+    <Collapse open appear>
     <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-muted/30 px-3 py-2">
       <label htmlFor="preview-note-text" className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         <StickyNote className="size-3.5 shrink-0" />
@@ -58,5 +60,6 @@ export default function QuestionNoteEditor({ draft, onChange, disabled, saving, 
         </Button>
       </div>
     </div>
+    </Collapse>
   );
 }
