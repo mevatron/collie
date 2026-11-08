@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -94,14 +94,14 @@ describe("PreviewSelectBlock — intents", () => {
     render(<PreviewSelectBlock preview={model} onAction={onAction} />);
 
     await user.click(screen.getByRole("button", { name: /Add a note/ }));
-    const input = screen.getByRole("textbox", { name: "Note text" });
+    const input = await screen.findByRole("textbox", { name: "Note text" });
     // Empty notes can't be saved (removal is the attached card's explicit control).
     expect(screen.getByRole("button", { name: /Save note/ })).toBeDisabled();
     await user.type(input, "prefer bolder borders");
     await user.click(screen.getByRole("button", { name: /Save note/ }));
     expect(onAction).toHaveBeenCalledWith({ kind: "note", text: "prefer bolder borders" });
-    // The editor closes after the save resolves (the revalidated model shows the truth).
-    expect(screen.queryByRole("textbox", { name: "Note text" })).not.toBeInTheDocument();
+    // The editor leaves after the save resolves and its closing animation finishes.
+    await waitFor(() => expect(screen.queryByRole("textbox", { name: "Note text" })).not.toBeInTheDocument());
   });
 
   it("editing prefills the current note; removing raises an empty note intent", async () => {

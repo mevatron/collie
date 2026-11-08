@@ -103,6 +103,10 @@ describe("CardDock: the dock shrinks before the chat does", () => {
     expect(dock().className).toMatch(/(?:^|\s)min-h-0(?=\s|$)/);
     expect(dock().className).toMatch(/(?:^|\s)shrink(?=\s|$)/);
     expect(dock().className).not.toMatch(/shrink-0/);
+    const slot = dock().closest<HTMLElement>('[data-slot="collapse"]')!;
+    expect(slot.className).toMatch(/(?:^|\s)min-h-0 shrink(?=\s|$)/);
+    expect(slot.className).not.toMatch(/shrink-0/);
+    expect(slot.className).toContain("[&>div]:flex");
     expect(dock().className).toMatch(/max-h-\[55dvh\]/);
     rerender(<CardDock blocks={blocks} composing />);
     expect(dock().className).toMatch(/max-h-\[40dvh\]/);
