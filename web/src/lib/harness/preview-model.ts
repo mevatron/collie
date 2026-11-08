@@ -27,6 +27,8 @@ export interface PreviewNote {
   /** The visible note text ("" for none / the empty placeholder). The TUI windows the display at
    *  ~60 columns, so a long note may be a truncated readback. */
   text: string;
+  /** A clipped/first-line summary, never an editable replacement base. */
+  textComplete?: false;
 }
 
 /** One selectable option of the preview dialog. */
