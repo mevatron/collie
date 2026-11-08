@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from "react";
 import { Loader2, Pencil, StickyNote, Trash2 } from "lucide-react";
 import type { PreviewNote } from "@/lib/harness/preview-model";
+import type { SeenValue } from "@/lib/editor-action";
 import { t } from "@/lib/i18n";
 import { useLocale } from "@/hooks/use-locale";
 import { Button } from "./button";
@@ -11,7 +12,7 @@ interface QuestionNoteProps {
   saving: boolean;
   maxLength: number;
   /** Native editors and their complete seen values belong to the dock, not this summary. */
-  onRead?: (remove?: boolean) => Promise<unknown>;
+  onRead?: (remove?: boolean) => Promise<SeenValue | null | void>;
   onSave: (text: string) => boolean | void | Promise<boolean | void>;
 }
 

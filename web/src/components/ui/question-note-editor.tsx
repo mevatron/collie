@@ -48,7 +48,7 @@ export default function QuestionNoteEditor({ draft, onChange, disabled, saving, 
         className="w-full resize-none rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground focus:border-primary/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       />
       <div className="flex items-center justify-end gap-1.5">
-        <Button type="button" variant="ghost" disabled={saving || returning} onClick={onCancel} className="min-h-11 px-2.5 text-xs text-muted-foreground">
+        <Button type="button" variant="ghost" disabled={inputDisabled || saving || returning} onClick={onCancel} className="min-h-11 px-2.5 text-xs text-muted-foreground">
           <span className="flex size-3.5 shrink-0 items-center justify-center">{returning ? busyIcon : null}</span>
           {cancelLabel ?? t("dialog.cancel")}
         </Button>

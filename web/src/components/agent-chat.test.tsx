@@ -3464,8 +3464,9 @@ describe("AgentChat — a card docks above the belt (ADR 0059)", () => {
     const bottomRow = container
       .querySelector('[data-slot="chrome-block"]')!
       .closest('[data-slot="collapse"]')!;
-    expect(dock!.previousElementSibling).toBe(mirror);
-    expect(dock!.nextElementSibling).toBe(bottomRow);
+    const dockSlot = dock!.closest<HTMLElement>('[data-slot="collapse"]')!;
+    expect(dockSlot.previousElementSibling).toBe(mirror);
+    expect(dockSlot.nextElementSibling).toBe(bottomRow);
 
     // A tall card scrolls inside the dock instead of pushing the composer off the screen.
     expect(dock!.className).toMatch(/(?:^|\s)max-h-\[55dvh\](?=\s|$)/);

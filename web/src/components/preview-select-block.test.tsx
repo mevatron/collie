@@ -94,7 +94,7 @@ describe("PreviewSelectBlock — intents", () => {
     render(<PreviewSelectBlock preview={model} onAction={onAction} />);
 
     await user.click(screen.getByRole("button", { name: /Add a note/ }));
-    const input = screen.getByRole("textbox", { name: "Note text" });
+    const input = await screen.findByRole("textbox", { name: "Note text" });
     // Empty notes can't be saved (removal is the attached card's explicit control).
     expect(screen.getByRole("button", { name: /Save note/ })).toBeDisabled();
     await user.type(input, "prefer bolder borders");
