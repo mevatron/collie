@@ -222,7 +222,9 @@ test.each([
   await rig.keys(pane, ["Up"]);
   await wait(/❯ 2\. \[/);
   if (global) await rig.keys(pane, ["Tab", "Tab", "Tab"]);
-  originEditors = (await multiTarget()).model.editors;
+  const noteOrigin = await rig.until(() => multiTarget(), (current) => current.model.phase === (global ? "review" : "checkbox"), 10_000, 80);
+  if (noteOrigin === null) throw new Error("fixture did not finish navigation before opening its note");
+  originEditors = noteOrigin.model.editors;
   await rig.keys(pane, ["n"]);
   await wait(global ? /Global note:/ : /Notes:/);
   try {
