@@ -60,7 +60,7 @@ export function piNoteContext(
   let optionLines = lines.slice(first, end);
   let preview: StyledLine[] = [];
   if (boxStart >= 0) {
-    const column = displayWidth(texts[boxStart]!.slice(0, texts[boxStart]!.indexOf("┌")));
+    const column = displayWidth(texts[boxStart]!.slice(0, texts[boxStart]!.search(/┌─{3,}┐$/)));
     const right = (row: number) => columns(lines[row]!, column);
     const boxEnd = texts.findIndex((_text, row) => row > boxStart && row < end && /^└─{3,}┘$/.test(lineText(right(row)).trimEnd()));
     if (boxEnd < 0 || lineText(right(boxStart)).trimEnd().slice(1, -1) !== lineText(right(boxEnd)).trimEnd().slice(1, -1) ||

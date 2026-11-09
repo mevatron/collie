@@ -24,6 +24,16 @@ describe("Pi native editor observation", () => {
     expect(context?.rows[4]).toContain("3. Type something.");
   });
 
+  it("keeps note editing available when an option label contains a preview-box corner", () => {
+    const lines = splitLines(parseAnsi(raw("preview").replace("Sequential", "┌── Plan A")));
+    const card = piAdapter.buildBlocks(lines).find((block) => block.kind === "preview-select");
+    expect(card?.preview.options[0]?.label).toBe("┌── Plan A");
+    const context = card?.preview.editors?.note?.context;
+    expect(context).toMatchObject({ rows: expect.arrayContaining([expect.stringContaining("┌── Plan A")]) });
+    expect(context?.fixedSignature).toContain("Read -> Write");
+    expect(context?.rows.join("\n")).not.toContain("Read -> Write");
+  });
+
   it("keeps editor context across its own automatic answer tick and clear", () => {
     const empty = piAdapter.observeDialogEditor?.(load("multi-field-empty"));
     const filled = piAdapter.observeDialogEditor?.(load("multi-field-filled"));

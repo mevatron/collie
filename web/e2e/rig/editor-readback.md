@@ -44,6 +44,11 @@ command in these owned panes, recording the returned native result directly. Do 
 prompt or load provider credentials for such a run. This exercises native layout/actions, not the
 multi-harness browser leg or model-triggered tool dispatch. Keep the fixture outside shipped code.
 
+For the review fixture, record the unmodified tool return as a JSON array `[result]` in a fresh
+file. Pass its absolute path as `COLLIE_REVIEW_RESULT` below. Leave the file absent until the tool
+returns; the suite rejects a previous run's result. The final review case submits one authored
+answer plus the global note and checks the native result's three unanswered question indexes.
+
 ## Run the public-boundary checks
 
 Preserve the same isolated `HOME` and `COLLIE_RIG_STATE` for these commands:
@@ -53,27 +58,29 @@ cd web
 COLLIE_READBACK_PANE=first-id \
 COLLIE_SINGLE_PANE=second-id \
 COLLIE_REVIEW_PANE=third-id \
+COLLIE_REVIEW_RESULT=/absolute/fresh-review-result.json \
   bunx vitest run --config e2e/rig/editor-readback.config.ts \
     e2e/rig/editor-readback.test.ts e2e/rig/editor-single.test.ts \
     e2e/rig/editor-review.test.ts
 ```
 
-The three primary fixtures cover 47 cases: 40 answer/note read-and-edit cases (including wrapped
-multiline save/return), five single-choice/preview cases and two review/global-note cases. The
+The three primary fixtures cover 48 cases: 40 answer/note read-and-edit cases (including wrapped
+multiline save/return), five single-choice/preview cases and three review/global-note cases. The
 preview cases include growing/shrinking native note layout and foreign-row refusal during reflow.
 `editor-api.ts` forwards same-origin calls to the real authenticated bridge. It audits every write's text/style bindings and the operation's allowed keys; reads cannot
 send text, erasure, Enter, Space or closure. Faults enter at that public API boundary, never through
 mocked private helpers. Faulted bodies cannot enter the production ETag cache.
 
 Two additional disposable fixtures exercise the review regressions, bringing the full suite to
-53 cases. Launch the same isolated Pi command with `editor-standalone-questions.json` for one call,
+54 cases. Launch the same isolated Pi command with `editor-standalone-questions.json` for one call,
 and with `editor-successor-questions.json` for **exactly two sequential calls**, first `first`, then
 `second`, awaiting each answer without choosing any. Set `COLLIE_STANDALONE_PANE` and
 `COLLIE_SUCCESSOR_PANE` to their actual returned ids alongside the other three variables, then omit
 the three explicit test filenames to run all five files. Standalone checks cover complete multiline read/return, wrapped and inclusive-limit
 save, explicit custom-value removal with authored selections preserved, and bound final advance.
-The standalone tests finally submit their synthetic answer; the successor test completes the
-first call and cancels the second. Restart those fixtures before another run.
+The review and standalone tests finally submit their synthetic answers; the successor test
+completes the first call and cancels the second. Restart those fixtures with fresh result files
+before another run.
 
 Run on wide and narrow native panes. For a 59-column stacked layout, split only a disposable
 workspace using the rig's scoped `herdr` helper from `rig-lib.ts`; never resize the operator's PTY.
