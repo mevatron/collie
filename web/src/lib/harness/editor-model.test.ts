@@ -3,6 +3,19 @@ import { sameDialogEditors, type DialogEditors } from "./editor-model";
 import { editorPlans } from "@/test/dialog-editor";
 
 describe("declared editor identity", () => {
+  it("compares originating context on exact reads, but not across a pointer/preview transition", () => {
+    const original = editorPlans();
+    original.note!.context = { fixedSignature: "preview-a", rows: ["choice", "description"] };
+    for (const context of [undefined, { fixedSignature: "preview-b", rows: ["choice", "description"] },
+      { fixedSignature: "preview-a", rows: ["choice", "other description"] }]) {
+      const moved = structuredClone(original);
+      moved.note!.context = context;
+      expect(sameDialogEditors(original, moved)).toBe(false);
+      expect(sameDialogEditors(original, moved, false)).toBe(true);
+    }
+    expect(sameDialogEditors(original, structuredClone(original))).toBe(true);
+  });
+
   it("compares every behavior-changing policy/key, but can ignore transient focus", () => {
     const original = editorPlans();
     const changes: ((plan: DialogEditors) => void)[] = [

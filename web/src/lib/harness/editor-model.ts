@@ -11,11 +11,22 @@ export interface EditorReadPlan {
   /** A breakable space is painted as this cell; omit when the caret is literal. */
   paintedSpace?: string;
 }
+export interface EditorContext {
+  fixedSignature: string;
+  /** Canonical, fully proved non-editor rows, in their native order. */
+  rows: string[];
+}
+export interface EditorContextProjection extends EditorContext {
+  clippedBefore: boolean;
+  clippedAfter: boolean;
+}
 interface EditorPolicy {
   normalize: "preserve" | "trim";
   /** Return may save/normalize native text; it is never a rollback promise. */
   unchangedExit: "preserve" | "save";
   read: EditorReadPlan;
+  /** Originating visible context; null means unproved, absence keeps the legacy exact check. */
+  context?: EditorContext | null;
 }
 export interface DialogEditors {
   ownerSignature: string;
@@ -31,15 +42,21 @@ function sameEditorPolicy(a: EditorPolicy, b: EditorPolicy): boolean {
     sameKeys(a.read.keys.up, b.read.keys.up) && sameKeys(a.read.keys.left, b.read.keys.left) && sameKeys(a.read.keys.right, b.read.keys.right);
 }
 
-/** Focus is transient; the measured clear/commit/close plans are not. */
+function sameContext(a: EditorContext | null | undefined, b: EditorContext | null | undefined): boolean {
+  return a === undefined || a === null || b === undefined || b === null ? a === b :
+    a.fixedSignature === b.fixedSignature && sameKeys(a.rows, b.rows);
+}
+
+/** Focus and its visible context are transient; measured clear/commit/close policies are not. */
 export function sameDialogEditors(a: DialogEditors | undefined, b: DialogEditors | undefined, compareFocus = true): boolean {
   if (a === undefined || b === undefined) return a === b;
   return a.ownerSignature === b.ownerSignature &&
     (a.answer === undefined || b.answer === undefined ? a.answer === b.answer :
       sameEditorPolicy(a.answer, b.answer) &&
       a.answer.return.repeat === b.answer.return.repeat && sameOptionalKeys(a.answer.return.keys, b.answer.return.keys) &&
-      (!compareFocus || sameOptionalKeys(a.answer.focusKeys, b.answer.focusKeys)) && sameOptionalKeys(a.answer.clearKeys, b.answer.clearKeys) && sameOptionalKeys(a.answer.commitKeys, b.answer.commitKeys)) &&
-    (a.note === undefined || b.note === undefined ? a.note === b.note : sameEditorPolicy(a.note, b.note) && sameOptionalKeys(a.note.openKeys, b.note.openKeys) &&
+      (!compareFocus || sameOptionalKeys(a.answer.focusKeys, b.answer.focusKeys) && sameContext(a.answer.context, b.answer.context)) && sameOptionalKeys(a.answer.clearKeys, b.answer.clearKeys) && sameOptionalKeys(a.answer.commitKeys, b.answer.commitKeys)) &&
+    (a.note === undefined || b.note === undefined ? a.note === b.note : sameEditorPolicy(a.note, b.note) &&
+      (!compareFocus || sameContext(a.note.context, b.note.context)) && sameOptionalKeys(a.note.openKeys, b.note.openKeys) &&
       sameOptionalKeys(a.note.clearLineKeys, b.note.clearLineKeys) && sameOptionalKeys(a.note.closeKeys, b.note.closeKeys));
 }
 
@@ -50,6 +67,8 @@ export interface DialogEditorObservation {
   ownerSignature: string;
   /** Current non-editor chrome/choices/styles, stable across caret moves but not a successor. */
   contextSignature: string;
+  /** Actual visible rows only; hidden rows are never reconstructed by the observer. */
+  contextProjection?: EditorContextProjection;
   regionSignature: string;
   styledSignature?: string;
   /** Visible row text, without the input prefix; wrapping is not a logical newline. */

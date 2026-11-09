@@ -7,7 +7,7 @@ import { describeApiError, describeThrownError } from "./api-error-message";
 import { sendReply } from "./api";
 import { FEEDBACK_MAX_LENGTH } from "./harness/prompt-model";
 import { NOTE_MAX_LENGTH } from "./harness/preview-model";
-import type { DialogEditorObservation, EditorReadPlan } from "./harness/editor-model";
+import type { DialogEditorObservation, EditorContext, EditorReadPlan } from "./harness/editor-model";
 
 export interface EditorReadTarget {
   paneId: string;
@@ -20,6 +20,7 @@ export interface EditorReadTarget {
   /** Always selected from the originating dialog, never a fresh successor. */
   readPlan?: EditorReadPlan;
   contextSignature?: string;
+  contextPlan?: EditorContext;
 }
 export type EditorReadResult =
   | { status: "read"; text: string; observation: DialogEditorObservation }
@@ -40,10 +41,23 @@ export type EditorPrepareResult =
   | { status: "ready"; seen: SeenValue; observation: DialogEditorObservation }
   | Exclude<ActionResult, { status: "sent" }>;
 
+function matchesContext(target: EditorReadTarget, editor: DialogEditorObservation): boolean {
+  const plan = target.contextPlan;
+  if (plan === undefined) return target.contextSignature === undefined || editor.contextSignature === target.contextSignature;
+  const view = editor.contextProjection;
+  if (view === undefined || view.fixedSignature !== plan.fixedSignature || view.rows.length === 0 && plan.rows.length > 0) return false;
+  let matches = 0;
+  for (let start = 0; start + view.rows.length <= plan.rows.length; start++) {
+    if ((start > 0) !== view.clippedBefore || (start + view.rows.length < plan.rows.length) !== view.clippedAfter) continue;
+    if (view.rows.every((row, index) => row === plan.rows[start + index])) matches++;
+  }
+  return matches === 1;
+}
+
 async function waitForOwnedEditor(target: EditorReadTarget, accept: (editor: DialogEditorObservation) => boolean = () => true) {
   const adapter = adapterFor(target.agent);
   const owns = (editor: DialogEditorObservation) => editor.ownerSignature === target.ownerSignature && editor.purpose === target.purpose &&
-    (target.contextSignature === undefined || editor.contextSignature === target.contextSignature);
+    matchesContext(target, editor);
   const waited = await pollUntil<DialogEditorObservation | null>(target, null,
     (lines) => adapter?.observeDialogEditor?.(lines) ?? null,
     (editor) => editor !== null && owns(editor) && accept(editor), (editor) => editor !== null && owns(editor));
@@ -69,7 +83,7 @@ export async function prepareDialogEditor(
     const sent = await sendBoundKeys(origin, keys, guarded.region, guarded.styled);
     if (sent.status !== "sent") return sent;
   }
-  const target = { ...origin, ownerSignature: editors.ownerSignature, purpose, readPlan: plan.read };
+  const target = { ...origin, ownerSignature: editors.ownerSignature, purpose, readPlan: plan.read, contextPlan: plan.context ?? undefined };
   const focused = await waitForOwnedEditor(target);
   if (focused.status !== "observed") return focused;
   const read = await readDialogEditor(target);
@@ -84,13 +98,13 @@ export async function prepareDialogEditor(
 }
 
 function seenTarget(seen: SeenValue): EditorReadTarget {
-  return { ...seen.origin, ownerSignature: seen.origin.model.editors?.ownerSignature ?? "", purpose: seen.purpose, readPlan: selectedPlan(seen)!.read, contextSignature: seen.contextSignature };
+  return { ...seen.origin, ownerSignature: seen.origin.model.editors?.ownerSignature ?? "", purpose: seen.purpose, readPlan: selectedPlan(seen)!.read, contextSignature: seen.contextSignature, contextPlan: selectedPlan(seen)!.context ?? undefined };
 }
 async function readSeenValue(seen: SeenValue): Promise<EditorReadResult> {
   if (!completePlan(seen.origin.model.editors, seen.purpose)) return { status: "changed" };
   const fresh = await readDialogEditor(seenTarget(seen));
   if (fresh.status !== "read") return fresh;
-  return fresh.text === seen.text && fresh.observation.contextSignature === seen.contextSignature ? fresh :
+  return fresh.text === seen.text ? fresh :
     { status: "changed", why: "native value or editor context changed since it was read" };
 }
 
@@ -176,7 +190,7 @@ export async function saveDialogEditor(seen: SeenValue, text: string): Promise<A
       if (returned.status !== "returned") return returned;
       const reopened = await prepareDialogEditor(returned.origin, seen.purpose);
       if (reopened.status !== "ready") return reopened;
-      if (reopened.seen.text !== (plan.unchangedExit === "save" ? normalize(seen.text, plan.normalize) : seen.text) || reopened.seen.contextSignature !== seen.contextSignature) {
+      if (reopened.seen.text !== (plan.unchangedExit === "save" ? normalize(seen.text, plan.normalize) : seen.text) || !matchesContext(seenTarget(seen), reopened.observation)) {
         return { status: "changed", why: "native note changed while re-establishing its dialog" };
       }
       observation = reopened.observation;
@@ -224,7 +238,7 @@ function completeReadPlan(plan: EditorReadPlan | undefined): plan is EditorReadP
 }
 function completePlan(editors: DialogModels[EditorKind]["editors"], purpose: SeenValue["purpose"]): boolean {
   const plan = purpose === "answer" ? editors?.answer : editors?.note;
-  if (plan === undefined || !completeReadPlan(plan.read) ||
+  if (plan === undefined || plan.context === null || !completeReadPlan(plan.read) ||
       (plan.normalize !== "preserve" && plan.normalize !== "trim") ||
       (plan.unchangedExit !== "save" && plan.unchangedExit !== "preserve")) return false;
   return "return" in plan
@@ -268,7 +282,7 @@ export async function readDialogEditor(target: EditorReadTarget): Promise<Editor
   try {
     const { model: initial } = await observe();
     if (initial === null || initial.ownerSignature !== target.ownerSignature || initial.purpose !== target.purpose ||
-        (target.contextSignature !== undefined && initial.contextSignature !== target.contextSignature)) {
+        !matchesContext(target, initial)) {
       throw new ReadRefused("not the complete owned editor");
     }
     const owned = initial;
@@ -280,7 +294,7 @@ export async function readDialogEditor(target: EditorReadTarget): Promise<Editor
       for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt++) {
         await sleep(POLL_DELAY_MS);
         const { model: current } = await observe();
-        if (current === null || current.ownerSignature !== owned.ownerSignature || current.contextSignature !== owned.contextSignature || current.purpose !== owned.purpose || current.layout !== owned.layout) {
+        if (current === null || current.ownerSignature !== owned.ownerSignature || current.contextSignature !== owned.contextSignature || current.purpose !== owned.purpose || current.layout !== owned.layout || !matchesContext(target, current)) {
           throw new ReadRefused("editor clipped or target changed");
         }
         if (contentOf(current, plan) !== ownedContent || (current.layout === "boxed" && current.regionSignature !== owned.regionSignature)) {
