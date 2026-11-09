@@ -305,7 +305,7 @@ test.each(["choices", "auxiliary hints"])("refuses a same-heading successor's %s
       transformRead(raw) {
         if (!opened) return raw;
         const modified = change === "choices" ? raw.replaceAll("Unit tests", "Successor choice") :
-          raw.replace("Ctrl+] to collapse", "Ctrl+A to delete all");
+          raw.replace("Enter to select", "Enter to select · Ctrl+A to delete all");
         injected ||= modified !== raw;
         return modified;
       },
