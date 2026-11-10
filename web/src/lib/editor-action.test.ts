@@ -75,6 +75,65 @@ beforeEach(() => {
 });
 
 describe("declared native editor reads", () => {
+  it("saves a note across proved native context reflow without dropping exact read guards", async () => {
+    const { seen, state } = nativeEditor("original\nnote", "question-note");
+    const context = { fixedSignature: "question-and-preview", rows: ["first choice", "description", "second choice"] };
+    Object.assign(seen.origin.model.editors!.note!, { context });
+    const observe = harness.observe.getMockImplementation()!;
+    harness.observe.mockImplementation(() => ({ ...observe(),
+      contextSignature: state.text === "" ? "expanded" : "context",
+      contextProjection: { ...context, rows: state.text === "" ? context.rows : context.rows.slice(0, 2),
+        clippedBefore: false, clippedAfter: state.text !== "" },
+    }));
+    expect(await saveDialogEditor(seen, "replacement\nnote")).toEqual({ status: "sent" });
+    expect(state.text).toBe("replacement\nnote");
+    expect(sendReply).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["foreign row", ["foreign"], false, true],
+    ["missing overflow", ["first"], false, false],
+    ["spurious overflow", ["first", "second"], false, true],
+    ["empty projection", [], true, true],
+    ["wrong ordering", ["second", "first"], false, false],
+  ] as const)("refuses a projected %s before moving or erasing", async (_name, rows, clippedBefore, clippedAfter) => {
+    const { seen } = nativeEditor("note", "question-note");
+    const contextPlan = { fixedSignature: "fixed", rows: ["first", "second"] };
+    const observe = harness.observe.getMockImplementation()!;
+    harness.observe.mockImplementation(() => ({ ...observe(), contextProjection: { fixedSignature: "fixed", rows, clippedBefore, clippedAfter } }));
+    const result = await readDialogEditor({ ...base, ownerSignature: "question-1", purpose: "question-note",
+      readPlan: seen.origin.model.editors!.note!.read, contextSignature: "context", contextPlan });
+    expect(result.status).toBe("changed");
+    expect(sendKeys).not.toHaveBeenCalled();
+    expect(sendReply).not.toHaveBeenCalled();
+  });
+
+  it.each(["missing", "foreign chrome", "ambiguous"])("refuses %s projection evidence before any key", async (fault) => {
+    const { seen } = nativeEditor("note", "question-note");
+    const contextPlan = { fixedSignature: "fixed", rows: ["first", "repeat", "middle", "repeat", "last"] };
+    const observe = harness.observe.getMockImplementation()!;
+    harness.observe.mockImplementation(() => ({ ...observe(), contextProjection: fault === "missing" ? undefined : {
+      fixedSignature: fault === "foreign chrome" ? "successor" : "fixed", rows: ["repeat"], clippedBefore: true, clippedAfter: true,
+    } }));
+    expect(await readDialogEditor({ ...base, ownerSignature: "question-1", purpose: "question-note",
+      readPlan: seen.origin.model.editors!.note!.read, contextPlan })).toMatchObject({ status: "changed" });
+    expect(sendKeys).not.toHaveBeenCalled();
+    expect(sendReply).not.toHaveBeenCalled();
+  });
+
+  it("still refuses exact within-read context drift when both projections match the original", async () => {
+    const { seen } = nativeEditor("note", "question-note");
+    const contextPlan = { fixedSignature: "fixed", rows: ["first", "second"] };
+    const observe = harness.observe.getMockImplementation()!;
+    let reads = 0;
+    harness.observe.mockImplementation(() => ({ ...observe(), contextSignature: reads++ === 0 ? "before" : "after",
+      contextProjection: { ...contextPlan, clippedBefore: false, clippedAfter: false } }));
+    expect(await readDialogEditor({ ...base, ownerSignature: "question-1", purpose: "question-note",
+      readPlan: seen.origin.model.editors!.note!.read, contextPlan })).toMatchObject({ status: "changed" });
+    expect(vi.mocked(sendKeys).mock.calls.map((call) => call[1])).toEqual([["Home"]]);
+    expect(sendReply).not.toHaveBeenCalled();
+  });
+
   it.each(["_", "e\u0301"])("reads and saves using the declared %j end marker", async (marker) => {
     const { seen, state } = nativeEditor("original", "answer", marker);
     expect(await saveDialogEditor(seen, "replacement")).toEqual({ status: "sent" });
@@ -98,6 +157,25 @@ describe("declared native editor reads", () => {
     expect(await readDialogEditor({ ...base, ownerSignature: "question-1", purpose: "answer" })).toMatchObject({ status: "changed" });
     expect(sendKeys).not.toHaveBeenCalled();
     expect(sendReply).not.toHaveBeenCalled();
+  });
+
+  it("refuses explicitly unproved originating context before opening an editor", async () => {
+    const { seen } = nativeEditor("note", "question-note");
+    seen.origin.model.editors!.note!.context = null;
+    expect(await prepareDialogEditor(seen.origin, "question-note")).toMatchObject({ status: "changed" });
+    expect(sendKeys).not.toHaveBeenCalled();
+    expect(sendReply).not.toHaveBeenCalled();
+  });
+
+  it("accepts a proved empty body only when neither end is clipped", async () => {
+    const { seen } = nativeEditor("note", "global-note");
+    const contextPlan = { fixedSignature: "empty-review", rows: [] };
+    const observe = harness.observe.getMockImplementation()!;
+    harness.observe.mockImplementation(() => ({ ...observe(), contextProjection: {
+      ...contextPlan, clippedBefore: false, clippedAfter: false,
+    } }));
+    expect(await readDialogEditor({ ...base, ownerSignature: "question-1", purpose: "global-note",
+      readPlan: seen.origin.model.editors!.note!.read, contextPlan })).toMatchObject({ status: "read", text: "note" });
   });
 
   it("threads the originating read plan through preparation", async () => {

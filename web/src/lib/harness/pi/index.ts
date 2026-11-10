@@ -10,10 +10,11 @@
 // was read from (`bindColumns`); the editor beside the panel binds nothing.
 import { trimTrailingBlank, type Block, type StyledLine } from "../../blocks";
 import type { DialogDetector, HarnessAdapter } from "../types";
-import { detectPiQuestion, piModalOnScreen, piQuestionBanner, type PiQuestion } from "./ask";
+import { detectPiQuestion, measuredRpivFooter, piEditorOwner, piModalOnScreen, piQuestionBanner, readPiFrame, type PiQuestion } from "./ask";
 import { composerDraft, composerPrompt, composerStatusLines, locateComposer } from "./composer";
 import { piView, type PiView } from "./panel";
 import { detectPiTrust } from "./trust";
+import { observePiEditor } from "./editor";
 
 export function piBuildBlocks(lines: StyledLine[]): Block[] {
   const view = piView(lines);
@@ -23,11 +24,12 @@ export function piBuildBlocks(lines: StyledLine[]): Block[] {
     const blocks: Block[] = before.length > 0 ? [{ kind: "raw", lines: before }] : [];
     // The card's own rows are the view's: beside the side panel they end at the panel's column.
     const region = view.lines.slice(question.startLine);
-    blocks.push(
-      question.kind === "prompt-select"
-        ? { kind: "prompt-select", prompt: question.model, lines: region }
-        : { kind: "wizard", wizard: question.model, lines: region },
-    );
+    switch (question.kind) {
+      case "prompt-select": blocks.push({ kind: "prompt-select", prompt: question.model, lines: region }); break;
+      case "wizard": blocks.push({ kind: "wizard", wizard: question.model, lines: region }); break;
+      case "preview-select": blocks.push({ kind: "preview-select", preview: question.model, lines: region }); break;
+      case "multi-select": blocks.push({ kind: "multi-select", multi: question.model, lines: region }); break;
+    }
     return blocks;
   }
   const trust = trustOn(view, lines);
@@ -90,6 +92,12 @@ function boundPrompt(lines: StyledLine[]): string | null {
 export const piAdapter: HarnessAdapter = {
   agent: "pi",
   buildBlocks: piBuildBlocks,
+  observeDialogEditor: (lines) => {
+    const view = piView(lines);
+    if (view.cropped) return null;
+    const frame = readPiFrame(view.lines);
+    return frame === null || !measuredRpivFooter(frame) ? null : observePiEditor(view.lines, frame, piEditorOwner(view.lines, frame));
+  },
   // Only the rows piBuildBlocks took off the mirror, which it does on a ready editor alone. With a
   // question, picker or dialog open they stay in the mirror or the card, and a strip copy doubles them.
   extractStatusLines: (lines) => {

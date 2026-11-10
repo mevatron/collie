@@ -62,7 +62,8 @@ function keyKind(token: string): KeyKind | null {
   if (/^space$/i.test(token)) return "space";
   if (token === "1-9") return "digits";
   if (/^(?:tab|shift\+tab)$/i.test(token)) return "tab";
-  if (/^[a-z]$/i.test(token) || /^ctrl\+[a-z]$/i.test(token)) return "letter";
+  // Auxiliary hints must parse too, without granting an acting key.
+  if (/^[a-z]$/i.test(token) || /^ctrl\+[a-z\]]$/i.test(token) || /^shift\+enter$/i.test(token)) return "letter";
   return null;
 }
 
@@ -84,7 +85,10 @@ export function parsePiFooter(text: string): PiFooter | null {
     escapeVerb: null,
     tabs: false,
   };
-  for (const segment of segments) {
+  for (const [index, segment] of segments.entries()) {
+    // RPIV clips its final auxiliary chord. It contributes no role or key.
+    if (index === segments.length - 1 && index >= 2 && segment.endsWith("…") &&
+        ["ctrl+]", "ctrl+u", "shift+enter"].some((key) => key.startsWith(segment.slice(0, -1).toLowerCase()))) continue;
     // Typed-text prose: `type a number or an answer`, `type numbers (1,3) or an answer`, `type 1,3`.
     if (/^type\b/i.test(segment)) continue;
     const m = HINT.exec(segment);

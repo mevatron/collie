@@ -22,7 +22,7 @@ and the live probes.
 | pi's own selector (`ctx.ui.confirm`, `ctx.ui.select`), unnumbered | `↑↓ navigate  enter select  escape/ctrl+c cancel` | (a) walk | built from source in `ask.test.ts` |
 | pi's own selector with a title of several rows: the stock `permission-gate` example, the command quoted further in | the same | (a) walk | `pi--v0871-permission-gate*`; live taps below |
 
-Raw, with the Escape card: every multi-select (`[ ]` rows, or a footer that gives Space a tick or a
+Outside the measured RPIV shape below, raw with the Escape card: every multi-select (`[ ]` rows, or a footer that gives Space a tick or a
 toggle), a pointer on the free-text row, every inline answer editor (`Enter to submit • Esc to go
 back`), an incomplete Submit or Review page (`Unanswered: …`, `Enter goes to the first unanswered`),
 every picker (below), and a Submit page beside OmO's side panel (below). A question beside the
@@ -37,6 +37,79 @@ that ends the buffer is then the same bytes as a live dialog, and the screen can
 quoted block above it is never read. With no editor, a quoted block lifts only when every tail rule
 holds, which is pi's own screen; a walked tap there still sends no Enter, because the pointer never
 moves and the poll times out.
+
+## Outside-footer question (RPIV 2.15.0, 2026-10-25)
+
+Captured in a scratch Herdr/bridge rig on Linux with pi 1.4.0, RPIV 2.15.0, a 120-column pane,
+English chrome and default bindings: `pi--rpiv-v2150-single.txt` and `-single-moved.txt` after Down.
+The footer sits below the bottom rule, separated by one blank row; pi's painted status follows it.
+The region includes this footer, not the status. The header opens with a padded background-painted
+caption chip, and the numbered options carry `❯` at column zero. `Ctrl+] to collapse` is a parsed
+non-acting hint: nothing here sends the shortcut. The list wraps, so no `clampedEnds` is declared.
+
+Before this change the actual adapter returned only raw text, `composerReady: false`, and
+`modalOnScreen: false`. Probed through a real Chromium Pixel 7 context against the scratch bridge:
+with the pointer on Green, one tap on Blue sent Down, verified the pointer, then Enter through the
+existing `submitPromptOption` path. Both bound writes returned 200; RPIV returned Blue and the model
+printed `RPIV_PROBE_ANSWER` with Blue. The tap did not focus the composer; this was the initial
+recognition slice, not the full-workflow proof.
+
+### Shared controls and measured bindings
+
+Selectors with or without a preview use the same `preview-select` contract: entering the appended
+input must not change the dialog kind. The input is never an authored option. Preview content is
+preserved in both side-by-side and 59-column stacked layouts. Options declare walked arrow/Enter
+plans, never digit jumps. Checkboxes declare arrow/Space toggles and a verified Next row. Custom
+checkboxes follow nonempty text automatically; their tick is read-only, and removal clears the
+complete value deliberately. Declared Tab plans navigate questions and return from review.
+
+A narrow `OneLineClippedText` hint can lose Esc or Tab. Only an exact prefix of the measured English,
+default-binding templates may declare roles common to **every** matching template. The observed
+footer stays literal; unknown copy or a torn resize paint grants no hidden key. A bar without its
+last arrow is complete only when the entire final `✓ Submit` chip remains. Generic Pi menus do not
+borrow these bindings. The raw torn capture still blocks composer typing.
+
+### Native editor readback and ownership
+
+`multi-field-wrap-soft` and `-hard` have identical canonical styled bindings but different logical
+line breaks. Display rows stay read-only; they are never joined into an editable replacement base.
+The optional pure `observeDialogEditor` supplies visible bounds/caret. Pure `pi/editor.ts` declares read plans, note trimming, saving
+unchanged exits, logical-line answer returns and Pi-tui caret cells through `DialogEditors`.
+`editor-action.ts` probes logical starts/ends and grapheme movements through the existing pane API,
+recovering real newlines, wrapped spaces, NBSP and Unicode only when the complete value is proved.
+
+Read moves the native cursor and leaves the editor open. Save requires its complete seen value,
+fresh full-value comparison, original owner and text/style bindings before erasure. Notes close
+unchanged, restore the full original dialog, reopen and re-read before replacement. Every native
+note plan declares its complete original styled body rows and fixed chrome; an unproved originating
+context disables preparation before the note hotkey. For an eligible preview, a growing note may
+show only an unambiguous contiguous window, with missing ends proved by painted overflow markers.
+Question/step, preview and applicable chrome stay fixed. A fully known empty review body is
+valid only without clipping; an empty projection cannot stand in for hidden rows. Foreign rows,
+changed styles, missing markers and ambiguous windows refuse; no hidden row is reconstructed. This opt-in projection applies across
+value changes only: each cursor read still binds its exact visible context, and every write binds
+the actual full text/style region. **Enter and Escape save trimmed native notes**; explicit phone return is not rollback. The dock keeps only the
+asked identity, phone draft and seen context through editor-only/raw views. Refused writes retain
+the draft. Single-choice custom save uses its declared final Enter; checkbox editing/clearing never
+commits with Enter or Space.
+
+Answers retain the existing 240-character limit; notes retain 300. Clipping, oversized values,
+unproved whitespace-only wrap tails and observed drift refuse rather than truncate. Reads are not
+atomic: hidden edits or indistinguishable successor invocations cannot be detected from the grid.
+Other unqualified Pi-family free-text rows remain untyped.
+
+### Review and qualification
+
+Review lifts native Submit/Cancel, visible answer echoes and the unanswered state. A painted
+bottom-overflow marker declares a clipped summary independently from unanswered questions.
+Hidden answers are not invented; hidden global notes remain unknown until completely read.
+Explicit partial submission never fills unanswered questions on the phone.
+
+Captures and the initial phone tap above are historical measurement evidence, not qualification of
+this split candidate. The opt-in `web/e2e/rig/editor-*.test.ts` checks exercise production APIs,
+complete reads, drift/successor refusal, exact replacement/clear and saving note return/reopen.
+Ordinary suites never launch those panes. Fresh native and required browser legs must be recorded
+against the final rebased candidate; old prototype runs do not satisfy that gate.
 
 ## Stock pi, read from its source
 
@@ -312,8 +385,8 @@ to honour `NO_COLOR`, capture it first, then read it.
 
 - The PR 397 extension is not published, so its screens are read from the contributor's captures
   only, and three of its walk groups have one capture each (`WALK_GAPS`).
-- Multi-select on any pi screen. The only evidence for a Space-then-Enter recipe is the PR 397
-  extension, and OmO's Enter toggles. It stays raw until a published extension proves the recipe.
+- Multi-select outside the measured RPIV 2.15.0 shape. The PR 397 extension and OmO keep their
+  existing raw behavior; OmO's Enter toggles.
 - OmO with several questions, or with an answered question.
 - A Submit page or a walked question beside OmO's side panel: no capture. Only OmO's one-question
   digit card is proven there.
